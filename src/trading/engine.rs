@@ -8,6 +8,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration},
 };
+use tracing::{debug, info, warn};
 
 use crate::{
     config::settings::Settings,
@@ -53,6 +54,11 @@ impl TradingController {
         let running = Arc::clone(&self.running);
 
         let handle = tokio::spawn(async move {
+            info!(
+                mode = %settings.app.mode,
+                loop_interval_ms = settings.trading.loop_interval_ms,
+                "trading loop started"
+            );
             let provider = JupiterQuoteProvider::new(
                 settings.trading.jupiter_quote_url.clone(),
                 settings.trading.max_slippage_bps as u16,
@@ -60,11 +66,13 @@ impl TradingController {
             while running.load(Ordering::SeqCst) {
                 let result = tick(&settings, &provider, &status, &trades).await;
                 if let Err(err) = result {
+                    warn!(error = %err, "trading tick failed");
                     let mut st = status.write().await;
                     st.last_error = Some(err.to_string());
                 }
                 sleep(Duration::from_millis(settings.trading.loop_interval_ms)).await;
             }
+            info!("trading loop stopped");
         });
 
         let mut task_lock = self.task.lock().await;
@@ -87,6 +95,7 @@ impl TradingController {
             handle.abort();
         }
 
+        info!("trading stop requested");
         "trading stopped".to_string()
     }
 
@@ -150,11 +159,13 @@ async fn tick(
         settings.trading.dexes.clone()
     };
 
-    {
+    let scan_no = {
         let mut st = status.write().await;
         st.scans += 1;
         st.last_scan_ms = Some(chrono::Utc::now().timestamp_millis());
-    }
+        st.scans
+    };
+    info!(scan = scan_no, dex_count = dexes.len(), "scan started");
 
     let mut best: Option<ArbitrageOpportunity> = None;
 
@@ -169,7 +180,10 @@ async fn tick(
             .await
         {
             Ok(q) => q,
-            Err(_) => continue,
+            Err(err) => {
+                debug!(scan = scan_no, buy_dex = %buy_dex, error = %err, "buy quote failed");
+                continue;
+            }
         };
 
         for sell_dex in &dexes {
@@ -187,7 +201,16 @@ async fn tick(
                 .await
             {
                 Ok(q) => q,
-                Err(_) => continue,
+                Err(err) => {
+                    debug!(
+                        scan = scan_no,
+                        buy_dex = %buy_dex,
+                        sell_dex = %sell_dex,
+                        error = %err,
+                        "sell quote failed"
+                    );
+                    continue;
+                }
             };
 
             let now_ms = chrono::Utc::now().timestamp_millis();
@@ -196,6 +219,15 @@ async fn tick(
             if buy_age_ms > settings.trading.max_quote_age_ms
                 || sell_age_ms > settings.trading.max_quote_age_ms
             {
+                debug!(
+                    scan = scan_no,
+                    buy_dex = %buy_dex,
+                    sell_dex = %sell_dex,
+                    buy_age_ms,
+                    sell_age_ms,
+                    max_quote_age_ms = settings.trading.max_quote_age_ms,
+                    "stale quotes rejected"
+                );
                 continue;
             }
 
@@ -204,6 +236,14 @@ async fn tick(
             if candidate.net_pnl_quote <= 0.0 {
                 continue;
             }
+            debug!(
+                scan = scan_no,
+                buy_dex = %buy_dex,
+                sell_dex = %sell_dex,
+                net_pnl_quote = candidate.net_pnl_quote,
+                expected_profit_bps = candidate.expected_profit_bps,
+                "profitable candidate found"
+            );
 
             if best
                 .as_ref()
@@ -216,6 +256,7 @@ async fn tick(
     }
 
     let Some(opportunity) = best else {
+        info!(scan = scan_no, "scan finished with no profitable opportunity");
         return Ok(());
     };
 
@@ -227,6 +268,14 @@ async fn tick(
     if opportunity.expected_profit_bps < settings.trading.min_profit_bps {
         let mut st = status.write().await;
         st.rejected_by_risk += 1;
+        info!(
+            scan = scan_no,
+            buy_venue = %opportunity.buy_venue,
+            sell_venue = %opportunity.sell_venue,
+            expected_profit_bps = opportunity.expected_profit_bps,
+            min_profit_bps = settings.trading.min_profit_bps,
+            "opportunity rejected by min profit threshold"
+        );
         return Ok(());
     }
 
@@ -258,6 +307,19 @@ async fn tick(
     if log.len() > 100 {
         let excess = log.len() - 100;
         log.drain(0..excess);
+    }
+
+    if let Some(last) = log.last() {
+        info!(
+            scan = scan_no,
+            buy_venue = %last.buy_venue,
+            sell_venue = %last.sell_venue,
+            amount_quote = last.amount_quote,
+            expected_pnl_quote = last.expected_pnl_quote,
+            status = %last.status,
+            tx_id = %last.tx_id,
+            "trade signal recorded"
+        );
     }
 
     Ok(())
