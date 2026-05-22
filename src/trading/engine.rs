@@ -120,7 +120,12 @@ impl TradingController {
             .map(|t| {
                 format!(
                     "{} -> {} | amount {:.2} | pnl {:.4} | {} | {}",
-                    t.buy_venue, t.sell_venue, t.amount_quote, t.expected_pnl_quote, t.status, t.tx_id
+                    t.buy_venue,
+                    t.sell_venue,
+                    t.amount_quote,
+                    t.expected_pnl_quote,
+                    t.status,
+                    t.tx_id
                 )
             })
             .collect();
@@ -136,7 +141,11 @@ async fn tick(
     trades: &Arc<Mutex<Vec<TradeExecution>>>,
 ) -> anyhow::Result<()> {
     let dexes = if settings.trading.dexes.is_empty() {
-        vec!["Raydium".to_string(), "Orca+V2".to_string(), "Meteora+DLMM".to_string()]
+        vec![
+            "Raydium".to_string(),
+            "Orca+V2".to_string(),
+            "Meteora+DLMM".to_string(),
+        ]
     } else {
         settings.trading.dexes.clone()
     };
@@ -190,7 +199,8 @@ async fn tick(
                 continue;
             }
 
-            let candidate = evaluate_opportunity(settings, buy_dex, sell_dex, &buy_quote, &sell_quote);
+            let candidate =
+                evaluate_opportunity(settings, buy_dex, sell_dex, &buy_quote, &sell_quote);
             if candidate.net_pnl_quote <= 0.0 {
                 continue;
             }
@@ -230,7 +240,11 @@ async fn tick(
         } else {
             "simulated_fill".to_string()
         },
-        tx_id: format!("{}-{}", settings.app.mode, chrono::Utc::now().timestamp_millis()),
+        tx_id: format!(
+            "{}-{}",
+            settings.app.mode,
+            chrono::Utc::now().timestamp_millis()
+        ),
         ts_ms: chrono::Utc::now().timestamp_millis(),
     };
 
@@ -260,12 +274,17 @@ fn evaluate_opportunity(
     let end_quote = sell_quote.out_amount;
     let gross_pnl = end_quote - start;
 
-    let estimated_slippage_cost = start * ((buy_quote.slippage_bps + sell_quote.slippage_bps) / 10_000.0);
+    let estimated_slippage_cost =
+        start * ((buy_quote.slippage_bps + sell_quote.slippage_bps) / 10_000.0);
     let tx_cost = settings.trading.estimated_tx_cost_quote;
     let latency_cost = settings.trading.latency_buffer_quote;
 
     let net = gross_pnl - estimated_slippage_cost - tx_cost - latency_cost;
-    let bps = if start > 0.0 { (net / start) * 10_000.0 } else { 0.0 };
+    let bps = if start > 0.0 {
+        (net / start) * 10_000.0
+    } else {
+        0.0
+    };
 
     ArbitrageOpportunity {
         buy_venue: buy_dex.to_string(),

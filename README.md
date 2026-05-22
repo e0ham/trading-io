@@ -30,6 +30,7 @@ Set environment variables:
 ```bash
 export TELEGRAM_ENABLED=true
 export TELEGRAM_BOT_TOKEN="<your-bot-token>"
+export TELEGRAM_ALLOWED_CHAT_IDS="123456789,-1001234567890"
 export APP_MODE=paper
 export BASE_TOKEN=SOL
 export QUOTE_TOKEN=USDC
@@ -56,6 +57,10 @@ Available bot commands:
 - `/stoptrading`
 - `/status`
 - `/trades`
+
+Security:
+- Set `TELEGRAM_ALLOWED_CHAT_IDS` to a comma-separated list of allowed chat IDs.
+- If empty, bot accepts commands from any chat.
 
 ## Run Scripts
 

@@ -8,6 +8,7 @@ services:
     environment:
       TELEGRAM_ENABLED: "${TELEGRAM_ENABLED:-false}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_ALLOWED_CHAT_IDS: "${TELEGRAM_ALLOWED_CHAT_IDS:-}"
       APP_MODE: "${APP_MODE:-paper}"
       BASE_TOKEN: "${BASE_TOKEN:-SOL}"
       QUOTE_TOKEN: "${QUOTE_TOKEN:-USDC}"

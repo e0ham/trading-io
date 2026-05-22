@@ -70,11 +70,7 @@ impl JupiterQuoteProvider {
         let in_ui = from_raw_amount(in_raw, input_decimals);
         let out_ui = from_raw_amount(out_raw, output_decimals);
 
-        let price_impact_bps = response
-            .price_impact_pct
-            .parse::<f64>()
-            .unwrap_or(0.0)
-            * 10_000.0;
+        let price_impact_bps = response.price_impact_pct.parse::<f64>().unwrap_or(0.0) * 10_000.0;
 
         Ok(Quote {
             venue: response

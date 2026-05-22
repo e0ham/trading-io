@@ -27,6 +27,7 @@ pub struct TradingConfig {
 pub struct TelegramConfig {
     pub enabled: bool,
     pub bot_token: Option<String>,
+    pub allowed_chat_ids: Vec<i64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -70,6 +71,7 @@ impl Settings {
                 .map(|v| matches!(v.as_str(), "1" | "true" | "TRUE" | "True"))
                 .unwrap_or(false),
             bot_token,
+            allowed_chat_ids: parse_chat_ids_env("TELEGRAM_ALLOWED_CHAT_IDS")?,
         };
 
         Ok(Self {
@@ -96,4 +98,20 @@ fn parse_env_u64(name: &str, default: u64) -> Result<u64> {
             .with_context(|| format!("failed to parse {name} as u64")),
         Err(_) => Ok(default),
     }
+}
+
+fn parse_chat_ids_env(name: &str) -> Result<Vec<i64>> {
+    let Ok(value) = env::var(name) else {
+        return Ok(Vec::new());
+    };
+
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            s.parse::<i64>()
+                .with_context(|| format!("failed to parse {name} entry '{s}' as i64"))
+        })
+        .collect()
 }

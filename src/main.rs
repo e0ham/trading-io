@@ -24,7 +24,9 @@ async fn main() -> Result<()> {
             .context("TELEGRAM_ENABLED=true but TELEGRAM_BOT_TOKEN is missing")?;
 
         tracing::info!("telegram control enabled");
-        if let Err(err) = control::telegram::run(controller, &token).await {
+        if let Err(err) =
+            control::telegram::run(controller, &token, cfg.telegram.allowed_chat_ids.clone()).await
+        {
             tracing::error!(error = %err, "telegram bot failed; falling back to passive mode");
         }
     } else {
