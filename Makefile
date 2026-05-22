@@ -1,4 +1,4 @@
-.PHONY: help start stop restart logs status local check test fmt clippy
+.PHONY: help start stop restart logs status start-dev stop-dev restart-dev logs-dev status-dev local check test fmt clippy
 
 help:
 	@echo "Available targets:"
@@ -7,6 +7,11 @@ help:
 	@echo "  make restart  - restart service"
 	@echo "  make logs     - follow service logs"
 	@echo "  make status   - show compose status"
+	@echo "  make start-dev   - start dev hot reload service"
+	@echo "  make stop-dev    - stop dev hot reload service"
+	@echo "  make restart-dev - restart dev hot reload service"
+	@echo "  make logs-dev    - follow dev service logs"
+	@echo "  make status-dev  - show dev compose status"
 	@echo "  make local    - run locally with cargo"
 	@echo "  make check    - cargo check"
 	@echo "  make test     - cargo test"
@@ -26,6 +31,20 @@ logs:
 
 status:
 	docker compose ps
+
+start-dev:
+	docker compose --profile dev up -d --build trading-io-dev
+
+stop-dev:
+	docker compose --profile dev stop trading-io-dev
+
+restart-dev: stop-dev start-dev
+
+logs-dev:
+	docker compose --profile dev logs -f trading-io-dev
+
+status-dev:
+	docker compose --profile dev ps
 
 local:
 	cargo run

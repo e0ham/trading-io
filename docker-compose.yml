@@ -28,3 +28,47 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  trading-io-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: trading-io-dev
+    profiles: ["dev"]
+    restart: unless-stopped
+    working_dir: /app
+    command: cargo watch -x run
+    environment:
+      TELEGRAM_ENABLED: "${TELEGRAM_ENABLED:-false}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_ALLOWED_CHAT_IDS: "${TELEGRAM_ALLOWED_CHAT_IDS:-}"
+      APP_MODE: "${APP_MODE:-paper}"
+      BASE_TOKEN: "${BASE_TOKEN:-SOL}"
+      QUOTE_TOKEN: "${QUOTE_TOKEN:-USDC}"
+      TRADE_SIZE_QUOTE: "${TRADE_SIZE_QUOTE:-100}"
+      MIN_PROFIT_BPS: "${MIN_PROFIT_BPS:-15}"
+      MAX_SLIPPAGE_BPS: "${MAX_SLIPPAGE_BPS:-20}"
+      MAX_QUOTE_AGE_MS: "${MAX_QUOTE_AGE_MS:-500}"
+      LOOP_INTERVAL_MS: "${LOOP_INTERVAL_MS:-1000}"
+      ESTIMATED_TX_COST_QUOTE: "${ESTIMATED_TX_COST_QUOTE:-0.01}"
+      LATENCY_BUFFER_QUOTE: "${LATENCY_BUFFER_QUOTE:-0.005}"
+      DEXES: "${DEXES:-Raydium,Orca+V2,Meteora+DLMM}"
+      JUPITER_QUOTE_URL: "${JUPITER_QUOTE_URL:-https://api.jup.ag/swap/v1/quote}"
+      RUST_LOG: "${RUST_LOG:-info}"
+    volumes:
+      - ./:/app
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - cargo-target:/app/target
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "cargo watch"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  cargo-registry:
+  cargo-git:
+  cargo-target:

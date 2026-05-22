@@ -105,6 +105,17 @@ docker compose logs -f trading-io
 docker compose down
 ```
 
+## Docker Dev Hot Reload
+
+Use the dev profile to auto-restart the Rust app on code changes:
+
+```bash
+docker compose --profile dev up --build trading-io-dev
+```
+
+The dev service mounts the project directory and runs `cargo watch -x run`.
+Cargo registry, git, and build target directories are persisted using named Docker volumes for faster incremental builds.
+
 ## Hetzner Deployment Notes
 
 - Keep `TELEGRAM_BOT_TOKEN` only in `.env` (never commit it).
